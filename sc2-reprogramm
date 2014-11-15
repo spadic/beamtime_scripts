@@ -1,0 +1,47 @@
+#!/bin/bash
+# Script to program the SysCore3
+# Modified version by Cruz Garcia, taken from:
+# 2013, Jan de Cuveland <cuveland@compeng.uni-frankfurt.de>
+# 2013, Dirk Hutter <hutter@compeng.uni-frankfurt.de>
+
+set -e
+
+# Add Cable serial number if more than one Xilinx-Cable is connected
+# Muenster's jtag's cables
+ESN=00001177677B01  # Black MS programmer
+#ESN=0000154A30D501  # RED programmer
+#ESN=000016C45EC901  # 3rd RED programmer
+#ESN=0000117634DC01   # Black GSI programmer
+
+# Add full path to impact if Xilinx directory is not in PATH
+#IMPACT=impact
+IMPACT=/opt/xilinx/14.7/LabTools/LabTools/bin/lin64/impact
+
+BITFILE=$1
+
+if [ ! -r "$BITFILE" ]; then
+        echo "[INFO] : Programming with default SC3 bitfile"
+	BITFILE=/home/maja/garcia/misc/bitfiles/syscore3/scv31_firmware_v1.08_spadic_optics_175mhz.bit        
+fi
+
+
+if [ $ESN ]; then
+	CABLE="-p usb210 -esn $ESN"
+else
+	CABLE="-p auto"
+fi
+
+
+# Program FPGA
+"$IMPACT" -batch <<-EOF
+setMode -bscan
+setCable $CABLE
+identify
+assignfile -p 1 -file "$BITFILE"
+program -p 1
+quit
+EOF
+rm _impactbatch.log
+sleep 1
+
+echo "Done C:"
