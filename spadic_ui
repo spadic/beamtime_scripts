@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+# vim: syntax=python
+
+PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic' 
+FLIB_CTRL_BASE_PORT = 9750
+
+import sys
+sys.path.insert(0, PATH_TO_SPADIC_SW)
+from walter_client import Spadic
+
+def parse_commandline(argv):
+    syscore_num = int(argv[1])
+    spadic_num = int(argv[2])
+    return syscore_num, spadic_num
+
+USAGE = """
+usage: spadic_ui <syscore #> <spadic #>
+"""
+
+def main(argv):
+    try:
+        syscore_num, spadic_num = parse_commandline(argv)
+    except:
+        raise SystemExit(USAGE)
+
+    port = FLIB_CTRL_BASE_PORT + syscore_num
+    host = 'tcp://localhost:%d' % port
+
+    print 'connecting to SPADIC #%d at %s...' % (spadic_num, host),
+    sys.stdout.flush()
+    s = Spadic(host, spadic_num)
+    s.ui_run()
+
+if __name__=='__main__':
+    main(sys.argv)
