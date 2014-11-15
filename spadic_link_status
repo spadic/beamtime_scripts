@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+# vim: syntax=python
+
+import struct
+import sys
+import zmq
+
+ADDR = 0x2F0028
+HOST = 'tcp://localhost:{PORT}'
+FLIB_BASE_PORT = 9750
+SEND_FMT = '<6I'
+RECV_FMT = '<4I'
+
+USAGE = """
+spadic_link_status <syscore #>
+"""
+
+def main(argv):
+    try:
+        syscore_num = int(argv[1])
+    except:
+        raise SystemExit(USAGE)
+
+    print 'Reading frontend link status from Syscore #%d...' % syscore_num
+    sys.stdout.flush()
+
+    c = zmq.Context()
+    s = c.socket(zmq.REQ)
+    s.connect(HOST.format(PORT=FLIB_BASE_PORT+syscore_num))
+
+    request = [1, 1, 0x8000, 1, ADDR, 0]
+    s.send(struct.pack(SEND_FMT, *request))
+    _, _, rc, result = struct.unpack(RECV_FMT, s.recv())
+
+    if not rc == 1:
+        raise SystemExit('Failed to read.')
+
+    for i in range(3):
+        status = {0: "no link", 1: "link active"}
+        print "SPADIC #%d: %s" % (i, status[(result >> i) & 1])
+    print '''
+Disclaimer: "%s" may not be accurate.
+            Reset the Syscore first to be sure.''' % status[1]
+
+if __name__=='__main__':
+    main(sys.argv)
