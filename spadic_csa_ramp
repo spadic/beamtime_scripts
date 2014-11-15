@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+# vim: syntax=python
+
+
+PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic'
+FLIB_CTRL_BASE_PORT = 9750
+
+import sys
+sys.path.insert(0, PATH_TO_SPADIC_SW)
+from walter_client import Spadic
+
+
+UP = "UP"
+DOWN = "DOWN"
+
+def csa_ramp(ctrl, direction):
+    current_level = ctrl.frontend.read()['psourcebias']
+    print "pSourceBias is now at", current_level
+    target_level = {UP: 80, DOWN: 0}[direction]
+    print "ramping %s to %s" % (direction, target_level)
+    if target_level == current_level:
+        return
+
+    if direction == DOWN: # we don't actually ramp
+        ctrl.frontend.write(psourcebias = 0) # write = set + apply
+    else:
+        levels = [x for x in [50, 60, 70, 80] if x > current_level]
+        for x in levels:
+            ctrl.frontend.write(psourcebias = x)
+            print "pSourceBias is now at", x
+
+def get_routing(argv):
+    syscore_num = int(argv[1])
+    spadic_num = int(argv[2])
+    return syscore_num, spadic_num
+
+USAGE = """
+usage: spadic_csa_ramp <syscore #> <spadic #> up|down
+"""
+
+def main(argv):
+    try:
+        syscore_num, spadic_num = get_routing(argv)
+        direction = {'up': UP, 'down': DOWN}[argv[3]]
+    except:
+        raise SystemExit(USAGE)
+
+    port = FLIB_CTRL_BASE_PORT + syscore_num
+    host = 'tcp://localhost:%d' % port
+
+    print 'configuring SPADIC #%d at %s...' % (spadic_num, host)
+    s = Spadic(host, spadic_num)
+    csa_ramp(s.ctrl, direction)
+    print 'OK.'
+
+if __name__=='__main__':
+    main(sys.argv)
