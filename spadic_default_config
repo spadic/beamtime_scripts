@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+# vim: syntax=python
+
+
+#==== the SPADIC configuration =======================================
+
+def set_config(ctrl, channels):
+    # analog global settings
+    ctrl.adcbias.set(
+      baseline = 0,
+      vndel = 70,
+      vploadfb = 70,
+      vpamp = 70,
+      vpdel = 70,
+      vpfb = 70,
+      vploadfb2 = 70
+    )
+
+    # digital global settings
+
+    # analog channel settings
+
+    # digital channel settings
+    for i in channels:
+        ctrl.digital.channel[i].set(
+          enable = 1,
+          entrigger = 1 # DLM 11
+        )
+
+#==== user interface =================================================
+
+PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic' 
+FLIB_CTRL_BASE_PORT = 9750
+
+import sys
+sys.path.insert(0, PATH_TO_SPADIC_SW)
+from walter_client import Spadic
+
+def get_routing(argv):
+    syscore_num = int(argv[1])
+    spadic_num = int(argv[2])
+    return syscore_num, spadic_num
+
+def get_channels(ch_arg):
+    if ch_arg.startswith('0x'):
+        return channels_from_hex(ch_arg)
+    else:
+        return map(int, ch_arg.split(','))
+
+def channels_from_hex(ch_hex_arg):
+    mask = int(ch_hex_arg, 16)
+    bitstring = bin(mask)[2:] # strip '0b'
+    return [i for (i, b) in enumerate(bitstring) if b == '1']
+
+USAGE = """
+usage: spadic_default_config <syscore #> <spadic #> [<channels>]
+
+Channels can be specified either as a list of numbers, separated by a
+comma (without space), for example:
+
+  0,1,2,3,15,18,29,30,31
+
+OR as an 8-digit hex code (prefixed with 0x), for example:
+
+  0xF0000003
+
+would be equivalent to 0,1,2,3,30,31.
+
+If left out, all channels are configured.
+"""
+
+def main(argv):
+    try:
+        syscore_num, spadic_num = get_routing(argv)
+        if len(argv) > 3:
+            channels = get_channels(argv[3])
+        else:
+            channels = range(32)
+    except:
+        raise# SystemExit(USAGE)
+
+    port = FLIB_CTRL_BASE_PORT + syscore_num
+    host = 'tcp://localhost:%d' % port
+
+    print 'configuring SPADIC #%d at %s...' % (spadic_num, host)
+    print 'selected channels:', ' '.join(map(str, sorted(channels)))
+    s = Spadic(host, spadic_num)
+    set_config(s.ctrl)
+    s.ctrl.apply()
+    print 'ok'
+
+if __name__=='__main__':
+    main(sys.argv)
