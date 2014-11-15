@@ -29,7 +29,7 @@ def set_config(ctrl, channels):
 
     ctrl.frontend.set( # change this only when everything else works
       frontend = 'P',
-      psourcebias = 0, # ramp up to 80 later
+      psourcebias = 0, # ramp up to 80 later (use spadic_csa_ramp script)
       nsourcebias = 70,
       pcasc = 30,
       ncasc = 110,
@@ -117,7 +117,7 @@ def main(argv):
         else:
             channels = range(32)
     except:
-        raise# SystemExit(USAGE)
+        raise SystemExit(USAGE)
 
     port = FLIB_CTRL_BASE_PORT + syscore_num
     host = 'tcp://localhost:%d' % port
@@ -127,7 +127,7 @@ def main(argv):
     s = Spadic(host, spadic_num)
     set_config(s.ctrl, channels)
     s.ctrl.apply()
-    print 'ok'
+    print 'OK. Amplifiers are still powered down.'
 
 if __name__=='__main__':
     main(sys.argv)
