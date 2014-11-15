@@ -2,12 +2,23 @@
 # vim: syntax=python
 
 
+PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic'
+FLIB_CTRL_BASE_PORT = 9750
+
+import sys
+sys.path.insert(0, PATH_TO_SPADIC_SW)
+from walter_client import Spadic
+
+
 #==== the SPADIC configuration =======================================
 
 def set_config(ctrl, channels):
-    # analog global settings
+    # first reset everything to initial values and change only what differs
+    ctrl.reset()
+
+    # global analog settings
     ctrl.adcbias.set(
-      baseline = 0,
+      baseline = 0, # TODO adjust properly
       vndel = 70,
       vploadfb = 70,
       vpamp = 70,
@@ -16,25 +27,54 @@ def set_config(ctrl, channels):
       vploadfb2 = 70
     )
 
-    # digital global settings
+    ctrl.frontend.set( # change this only when everything else works
+      frontend = 'P',
+      psourcebias = 0, # ramp up to 80 later
+      nsourcebias = 70,
+      pcasc = 30,
+      ncasc = 110,
+      xfb = 30
+    )
 
-    # analog channel settings
-
-    # digital channel settings
+    # per-channel analog settings
     for i in channels:
-        ctrl.digital.channel[i].set(
-          enable = 1,
-          entrigger = 1 # DLM 11
+        ctrl.frontend.channel[i].set(
+          enablecsa = True,
+          enableadc = True,
+          baseline = 0 # TODO adjust properly
         )
 
+    # global digital settings
+    ctrl.hitlogic.set(
+      threshold1 = 30, # TODO adjust properly
+      threshold2 = 50, # TODO adjust properly
+      diffmode = False,
+      mask = 0xFFFFFFFF,
+      window = 32,
+      analogtrigger = False, # injection in ch.31 triggered by DLM 10
+      triggerout = False # LVDS output triggered by DLM 12
+    )
+
+    # per-channel digital settings
+    for i in channels:
+        ctrl.digital.channel[i].set(
+          enable = True,
+          entrigger = True # DLM 11 force trigger
+        )
+
+    #----------------------------------------------------
+    # advanced stuff - do this when everything else works
+
+    # neighbor trigger setup
+    #ctrl.digital.neighbor['A'].set(source=5, target=3, enable=1) # etc
+
+    # digital filter settings
+    #ctrl.filter.set(
+    #  scaling = 32, # 32 = unity
+    #  offset = 0
+    #)
+
 #==== user interface =================================================
-
-PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic' 
-FLIB_CTRL_BASE_PORT = 9750
-
-import sys
-sys.path.insert(0, PATH_TO_SPADIC_SW)
-from walter_client import Spadic
 
 def get_routing(argv):
     syscore_num = int(argv[1])
@@ -85,7 +125,7 @@ def main(argv):
     print 'configuring SPADIC #%d at %s...' % (spadic_num, host)
     print 'selected channels:', ' '.join(map(str, sorted(channels)))
     s = Spadic(host, spadic_num)
-    set_config(s.ctrl)
+    set_config(s.ctrl, channels)
     s.ctrl.apply()
     print 'ok'
 
