@@ -1,5 +1,0 @@
-#!/bin/bash
-impact -batch <<-EOF
-cleancablelock
-exit
-EOF
