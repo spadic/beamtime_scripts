@@ -89,7 +89,7 @@ def get_channels(ch_arg):
 
 def channels_from_hex(ch_hex_arg):
     mask = int(ch_hex_arg, 16)
-    bitstring = bin(mask)[2:] # strip '0b'
+    bitstring = bin(mask)[2:].rjust(32, '0') # strip '0b'
     return [i for (i, b) in enumerate(bitstring) if b == '1']
 
 USAGE = """
