@@ -41,7 +41,7 @@ def set_config(ctrl, channels):
         ctrl.frontend.channel[i].set(
           enablecsa = True,
           enableadc = True,
-          baseline = 0 # TODO adjust properly
+          baseline = 70 # adjust later to match channels
         )
 
     # global digital settings
