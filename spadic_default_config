@@ -18,7 +18,7 @@ def set_config(ctrl, channels):
 
     # global analog settings
     ctrl.adcbias.set(
-      baseline = 0, # TODO adjust properly
+      baseline = 70,
       vndel = 70,
       vploadfb = 70,
       vpamp = 70,
