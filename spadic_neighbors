@@ -29,6 +29,14 @@ def set_neighbors(ctrl):
             for tgt_ch in [src_ch+2, src_ch-2]:
                 nb.set(source=src_ch, target=tgt_ch, enable=True)
 
+    # 2) across groups TODO not sure if correct AND working
+    pairs = {'A': [(14, 'l0'), (15, 'l1')],
+             'B': [(0, 'u0'), (1, 'u1')]}
+    for group in 'AB':
+        for s, t in pairs[group]:
+            ctrl.digital.neighbor[group].set(source=s, target=t, enable=True)
+            ctrl.digital.neighbor[group].set(source=t, target=s, enable=True)
+
 
 USAGE = """
 usage: spadic_neighbors <syscore #> <spadic #>
