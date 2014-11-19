@@ -10,13 +10,25 @@ sys.path.insert(0, PATH_TO_SPADIC_SW)
 from walter_client import Spadic
 
 
-#==== the SPADIC configuration =======================================
+def set_neighbors(ctrl):
+    """
+    Set neighbor trigger matrix.
 
-def set_neighbors(ctrl, channels):
-    # neighbor trigger setup
-    ctrl.digital.neighbor['A'].set(source=5, target=3, enable=1) # etc
+    All odd channels are neighbors and all even channels are neighbors:
 
-#==== user interface =================================================
+      0 2 4 8 10 12 14
+      1 3 5 9 11 13 15
+    """
+
+    # 1) within channel groups (exclude edge channels)
+    for group in 'AB':
+        nb = ctrl.digital.neighbor[group]
+        nb.reset() # first clear all existings settings
+
+        for src_ch in range(2, 14):
+            for tgt_ch in [src_ch+2, src_ch-2]:
+                nb.set(source=src_ch, target=tgt_ch, enable=True)
+
 
 USAGE = """
 usage: spadic_neighbors <syscore #> <spadic #>
@@ -33,7 +45,7 @@ def main(argv):
 
     print 'configuring neighbor matrix of SPADIC #%d at %s...' % (spadic_num, host)
     s = Spadic(host, spadic_num)
-    set_neighbors(s.ctrl, channels)
+    set_neighbors(s.ctrl)
     s.ctrl.apply()
 
 if __name__=='__main__':
