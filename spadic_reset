@@ -26,12 +26,12 @@ def main(argv):
     port = FLIB_CTRL_BASE_PORT + syscore_num
     host = 'tcp://localhost:%d' % port
 
-    print 'resetting SPADIC #%d at %s...' % (spadic_num, host),
+    print 'resetting SPADIC #%d at %s...' % (spadic_num, host)
     sys.stdout.flush()
     s = Spadic(host, spadic_num)
     s.ctrl.reset()
     s.ctrl.apply()
-    print 'ok'
+    print 'OK.'
 
 if __name__=='__main__':
     main(sys.argv)
