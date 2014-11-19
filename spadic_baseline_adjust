@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+# vim: syntax=python
+
+
+PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic'
+FLIB_CTRL_BASE_PORT = 9750
+
+import sys
+sys.path.insert(0, PATH_TO_SPADIC_SW)
+from walter_client import Spadic
+
+
+# TODO
+
+def set_thresholds(ctrl, thresholds):
+    res = ctrl.hitlogic.read()
+    current_thresholds = [res['threshold1'], res['threshold2']]
+    print "thresholds are now at", current_thresholds
+    print "setting them to", thresholds
+    ctrl.hitlogic.write(**dict(zip(['threshold1', 'threshold2'], thresholds)))
+
+# TODO
+
+USAGE = """
+usage: spadic_baseline_adjust <syscore #> <spadic #> off|<th1 th2>
+
+"off" -> 255 255
+"""
+
+# TODO
+
+def main(argv):
+    try:
+        syscore_num, spadic_num = map(int, argv[1:3])
+        if argv[3] == 'off':
+            thresholds = [255, 255]
+        else:
+            thresholds = map(int, argv[3:5])
+    except:
+        raise SystemExit(USAGE)
+
+    port = FLIB_CTRL_BASE_PORT + syscore_num
+    host = 'tcp://localhost:%d' % port
+
+    print 'setting thresholds of SPADIC #%d at %s...' % (spadic_num, host)
+    s = Spadic(host, spadic_num)
+    set_thresholds(s.ctrl, thresholds)
+    print 'OK.'
+
+# TODO
+
+if __name__=='__main__':
+    main(sys.argv)
