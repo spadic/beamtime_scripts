@@ -53,6 +53,7 @@ def main(argv):
 
     print 'configuring neighbor matrix of SPADIC #%d at %s...' % (spadic_num, host)
     s = Spadic(host, spadic_num)
+    s.ctrl.update()
     set_neighbors(s.ctrl)
     s.ctrl.apply()
 
