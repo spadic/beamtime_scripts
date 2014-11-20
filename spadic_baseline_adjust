@@ -37,13 +37,25 @@ def get_arg(argv, name, type_):
         return None
 
 class BaselineAdjuster:
-
     # TODO add second order term and find good initial guess
     @staticmethod
     def baseline_curve_inv(x, a, b):
         return a*x + b
 
-    CENTER_SETTING = 70
+    CENTER_SETTING = 70 # not really the center but the nominal value
+    SETTING_RANGE_WARN = [CENTER_SETTING-30, CENTER_SETTING+30]
+    SETTING_RANGE_FAIL = [0, 127]
+
+    @staticmethod
+    def is_outside_range(value, range_):
+        return not (range_[0] <= value <= range_[1])
+
+    @staticmethod
+    def limit_to_range(value, range_):
+        if value < range_[0]:
+            return range_[0]
+        if value > range_[1]:
+            return range_[1]
 
     def __init__(self, argv):
         try:
@@ -104,8 +116,11 @@ class BaselineAdjuster:
         for ch in channels:
             self.set_setting(ch, setting)
         self.ctrl.apply()
-        res = self.acquire(self._duration)
-        return {k: res[k] for k in ['mean', 'std']}
+        acquired = self.acquire(self._duration)
+        result = {k: acquired[k] for k in ['mean', 'std']}
+        if not all(result.values()):
+            raise RuntimeError('Could not measure the baseline.')
+        return result
 
     def calibrate_settings(self, channels=None):
         channels = channels or range(32)
@@ -139,6 +154,15 @@ class BaselineAdjuster:
         print "the target baseline is %.1f" % target
         for ch in channels:
             s = int(self.baseline_curve_inv(target, *self.calibration_parameters[ch]))
+            if self.is_outside_range(s, self.SETTING_RANGE_FAIL):
+                limit_value = self.limit_to_range(s, self.SETTING_RANGE_FAIL)
+                print ("WARNING: Trying to set channel %d to %d, "
+                       "which is outside the acceptable range. "
+                       "Limiting to %d." % (ch, s, limit_value))
+                s = limit_value
+            elif self.is_outside_range(s, self.SETTING_RANGE_WARN):
+                print ("WARNING: Trying to set channel %d to %d, "
+                       "which is not a good value." % (ch, s))
             # TODO check values not in 0..127
             self.set_setting(ch, s)
 
@@ -150,7 +174,10 @@ class BaselineAdjuster:
 #---- MAIN -----------------------------------------------------------
 
 def main(argv):
-    adj = BaselineAdjuster(argv)
+    try:
+        adj = BaselineAdjuster(argv)
+    except RuntimeError as e:
+        raise SystemExit('ERROR: %s' % str(e))
     adj.adjust()
 
 if __name__=='__main__':
