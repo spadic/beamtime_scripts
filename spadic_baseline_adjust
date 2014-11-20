@@ -19,7 +19,7 @@ usage: spadic_baseline_adjust <syscore #> <spadic #>
 
 SPADIC_BASE_ADDR = 0 # scv3 register 0x6a0
 EQ_ID_BASE = 0xE000
-ACQUIRE_INTERVAL = 0.1 # seconds to measure baseline + noise
+ACQUIRE_INTERVAL = 1.0 # seconds to measure baseline + noise
 
 class BaselineAdjuster:
     def __init__(self, argv):
