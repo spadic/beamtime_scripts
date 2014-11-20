@@ -43,6 +43,12 @@ class BaselineAdjuster:
         s = Spadic(host, spadic_num)
         self.ctrl = s.ctrl
 
+        # set baseline settings to center values
+        self.ctrl.update()
+        for ch in range(32):
+            self.set_setting(ch, 64)
+        self.ctrl.apply()
+
         # Make a dummy reading to let the publisher know we are here.
         # Apparently we need to use the same time interval here as we use
         # later. If we use less, we will miss something later, if we use
