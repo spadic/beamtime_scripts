@@ -21,12 +21,6 @@ SPADIC_BASE_ADDR = 0 # scv3 register 0x6a0
 EQ_ID_BASE = 0xE000
 ACQUIRE_INTERVAL = 0.1 # seconds to measure baseline + noise
 
-    port = FLIB_CTRL_BASE_PORT + syscore_num
-    host = 'tcp://localhost:%d' % port
-    print 'setting thresholds of SPADIC #%d at %s...' % (spadic_num, host)
-    s = Spadic(host, spadic_num)
-    set_thresholds(s.ctrl, thresholds)
-    print 'OK.'
 class BaselineAdjuster:
     def __init__(self, argv):
         try:
@@ -34,6 +28,7 @@ class BaselineAdjuster:
         except:
             raise SystemExit(USAGE)
 
+        # set up HitMonitors
         mon = {}
         for i in [0, 1]:
             eq_id = EQ_ID_BASE + syscore_num
@@ -42,24 +37,61 @@ class BaselineAdjuster:
             mon[i] = HitMonitor(['dummy'] + mon_arg)
         self.mon = mon
 
+        # set up controls
+        port = FLIB_CTRL_BASE_PORT + syscore_num
+        host = 'tcp://localhost:%d' % port
+        s = Spadic(host, spadic_num)
+        self.ctrl = s.ctrl
+
         # Make a dummy reading to let the publisher know we are here.
         # Apparently we need to use the same time interval here as we use
         # later. If we use less, we will miss something later, if we use
         # more, we will get too much later.
         self.measure()
 
+        # set up working memory
+        self.slopes = self.get_slopes()
+
     def measure(self, interval=ACQUIRE_INTERVAL):
-        rates = {}
-        b_mean = {}
-        b_std = {}
+        res = {'rate': {}, 'mean': {}, 'std':  {}}
         for i in [0, 1]:
-            res = self.mon[i].acquire(interval)
-            for ch_str in sorted(res['baseline_mean']): # 'EEEE:LLLL:C'
+            a = self.mon[i].acquire(interval)
+            for ch_str in sorted(a['baseline_mean']): # 'EEEE:LLLL:C'
                 ch = int(ch_str[-1], 16) + 16 * i
-                rates[ch] = res['hit_rates'][ch_str]
-                b_mean[ch] = res['baseline_mean'][ch_str]
-                b_std[ch] = res['baseline_std'][ch_str]
-        return rates, b_mean, b_std
+                res['rate'][ch] = a['hit_rates'][ch_str]
+                res['mean'][ch] = a['baseline_mean'][ch_str]
+                res['std'][ch] = a['baseline_std'][ch_str]
+        return res
+
+    def get_setting(self, ch):
+        return self.ctrl.frontend.channel[ch].get()['baseline']
+
+    def set_setting(self, ch, value):
+        self.ctrl.frontend.channel[ch].set(baseline=value)
+
+    def get_slopes(self):
+        self.ctrl.update()
+        m = self.measure()
+        old_baselines = {}
+        old_settings = {}
+        new_settings = {}
+        channels = m['mean'].keys()
+        for ch in channels:
+            old_baselines[ch] = m['mean'][ch]
+            old_settings[ch] = self.get_setting(ch)
+            new_settings[ch] = old_settings[ch] + 10
+            self.set_setting(ch, new_settings[ch])
+        self.ctrl.apply()
+        m = self.measure()
+        new_baselines = {ch: m['mean'][ch] for ch in channels}
+        return {ch: ((new_baselines[ch]-old_baselines[ch]) /
+                     (new_settings[ch]-old_settings[ch]))
+                for ch in channels}
+
+    def adjust(self, ch, target):
+        current_setting = self.read_setting(ch)
+        current_baseline = self.measure()['mean'][ch]
+        print "channel", ch, "is now at", current_setting, current_baseline
 
 
 #---- MAIN -----------------------------------------------------------
