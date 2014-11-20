@@ -107,7 +107,7 @@ class BaselineAdjuster:
         print target
         for ch in channels:
             deviation = new_baselines[ch] - target
-            correction = int(deviation/slopes[ch])
+            correction = int(-deviation/slopes[ch])
             self.set_setting(ch, new_settings[ch] + correction - 10)
 
         self.ctrl.apply()
