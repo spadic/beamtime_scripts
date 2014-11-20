@@ -13,15 +13,6 @@ from walter_client import Spadic
 from hitmonitor import HitMonitor
 
 
-# TODO
-
-def adjust_baselines(ctrl, monitor):
-    res = ctrl.hitlogic.read()
-    current_thresholds = [res['threshold1'], res['threshold2']]
-    print "thresholds are now at", current_thresholds
-    print "setting them to", thresholds
-    ctrl.hitlogic.write(**dict(zip(['threshold1', 'threshold2'], thresholds)))
-
 USAGE = """
 usage: spadic_baseline_adjust <syscore #> <spadic #>
 """
