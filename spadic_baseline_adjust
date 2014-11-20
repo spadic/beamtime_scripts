@@ -6,6 +6,8 @@ PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic'
 PATH_TO_HITMONITOR = '/home/cbm/cbmflib05/spadic10-sw/lib/timeslice/demo'
 FLIB_CTRL_BASE_PORT = 9750
 
+import numpy as np
+from scipy.optimize import curve_fit
 import sys
 sys.path.insert(0, PATH_TO_SPADIC_SW)
 sys.path.insert(0, PATH_TO_HITMONITOR)
@@ -19,9 +21,16 @@ usage: spadic_baseline_adjust <syscore #> <spadic #>
 
 SPADIC_BASE_ADDR = 0 # scv3 register 0x6a0
 EQ_ID_BASE = 0xE000
-ACQUIRE_INTERVAL = 1.0 # seconds to measure baseline + noise
+ACQUIRE_INTERVAL = 0.1 # seconds to acquire baseline + noise
 
 class BaselineAdjuster:
+    # TODO add second order term and find good initial guess
+    @staticmethod
+    def baseline_curve_inv(x, a, b):
+        return a*x + b
+
+    CENTER_SETTING = 70
+
     def __init__(self, argv):
         try:
             syscore_num, spadic_num = map(int, argv[1:3])
@@ -40,20 +49,21 @@ class BaselineAdjuster:
         # set up controls
         port = FLIB_CTRL_BASE_PORT + syscore_num
         host = 'tcp://localhost:%d' % port
+        print "connecting to SPADIC #%d at %s" % (spadic_num, host)
         s = Spadic(host, spadic_num)
+        s.ctrl.update()
         self.ctrl = s.ctrl
-
-        # set baseline settings to center values
-        self.ctrl.update()
-        for ch in range(32):
-            self.set_setting(ch, 64)
-        self.ctrl.apply()
 
         # Make a dummy reading to let the publisher know we are here.
         # Apparently we need to use the same time interval here as we use
         # later. If we use less, we will miss something later, if we use
         # more, we will get too much later.
         self.acquire()
+
+        # calibrate
+        b, p = self.calibrate_settings()
+        self.measured_baselines = b
+        self.calibration_parameters = p
 
     def acquire(self):
         res = {'rate': {}, 'mean': {}, 'std':  {}}
@@ -72,59 +82,60 @@ class BaselineAdjuster:
     def set_setting(self, ch, value):
         self.ctrl.frontend.channel[ch].set(baseline=value)
 
-    def measure_baseline(self, setting):
+    def measure_baseline(self, setting, channels=None):
+        print "measuring the baselines at setting %d..." % setting
+        channels = channels or range(32)
         for ch in channels:
             self.set_setting(ch, setting)
         self.ctrl.apply()
         res = self.acquire()
         return {k: res[k] for k in ['mean', 'std']}
 
-    def adjust(self):
-        self.ctrl.update()
-        m = self.acquire()
-        old_baselines = {}
-        old_settings = {}
-        new_settings = {}
+    def calibrate_settings(self, channels=None):
+        channels = channels or range(32)
+        setting_steps = [self.CENTER_SETTING + (10*i) for i in range(-2, 4)]
+        measured_baselines = {s: self.measure_baseline(s, channels)
+                              for s in setting_steps}
+        parameters = {}
+        p0 = [1.2, 350]
+        for ch in channels:
+            # trick: swap x, y now to save solving for x later
+            y = np.array(setting_steps)
+            x = np.array([measured_baselines[s]['mean'][ch]
+                          for s in setting_steps])
+            sigma = np.array([measured_baselines[s]['std'][ch]
+                              for s in setting_steps])
+            popt, _ = curve_fit(self.baseline_curve_inv, x, y, p0, sigma)
+            parameters[ch] = popt
+        return measured_baselines, parameters
 
-        # determine which channels are active
-        channels = m['mean'].keys()
-        print 'see data from channels', ' '.join(map(str, sorted(channels)))
-
+    def adjust(self, target=None):
+        """
+        Equalize the baselines of all channels.
+        If not specified otherwise, the target is the median of the center
+        settings.
+        """
         # TODO sort out broken channels (mean value off, noisy, ...)
+        channels = range(32)
 
-        # determine slopes
+        b = self.measured_baselines[self.CENTER_SETTING]['mean']
+        target = target or sorted(b.values())[len(channels)/2] # median
+        print "the target baseline is %.1f" % target
         for ch in channels:
-            old_baselines[ch] = m['mean'][ch]
-            old_settings[ch] = self.get_setting(ch)
-            new_settings[ch] = old_settings[ch] + 10
-            self.set_setting(ch, new_settings[ch])
-        self.ctrl.apply()
-        m = self.acquire()
-        new_baselines = {ch: m['mean'][ch] for ch in channels}
-        slopes = {ch: ((new_baselines[ch]-old_baselines[ch]) /
-                       (new_settings[ch]-old_settings[ch]))
-                  for ch in channels}
-
-        for ch in channels:
-            print ch, slopes[ch]
-
-        # equalize baselines (target = median)
-        target = sorted(new_baselines.values())[len(channels)/2]
-        print old_baselines.values()
-        print target
-        for ch in channels:
-            deviation = new_baselines[ch] - target
-            correction = int(-deviation/slopes[ch])
-            self.set_setting(ch, new_settings[ch] + correction - 10)
+            s = int(self.baseline_curve_inv(target, *self.calibration_parameters[ch]))
+            # TODO check values not in 0..127
+            self.set_setting(ch, s)
 
         self.ctrl.apply()
+        print "final baseline settings:", [self.get_setting(ch)
+                                           for ch in sorted(channels)]
 
 
 #---- MAIN -----------------------------------------------------------
 
 def main(argv):
     adj = BaselineAdjuster(argv)
-    adj.adjust()
+    adj.adjust()#target=-230)
 
 if __name__=='__main__':
     main(sys.argv)
