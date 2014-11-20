@@ -28,7 +28,7 @@ usage: spadic_baseline_adjust <syscore #> <spadic #>
 
 SPADIC_BASE_ADDR = 0 # scv3 register 0x6a0
 EQ_ID_BASE = 0xE000
-ACQUIRE_INTERVAL = 1.0 # seconds to measure baseline + noise
+ACQUIRE_INTERVAL = 0.1 # seconds to measure baseline + noise
 
     port = FLIB_CTRL_BASE_PORT + syscore_num
     host = 'tcp://localhost:%d' % port
@@ -51,15 +51,17 @@ class BaselineAdjuster:
             mon[i] = HitMonitor(['dummy'] + mon_arg)
         self.mon = mon
 
+        # Make a dummy reading to let the publisher know we are here.
+        # Apparently we need to use the same time interval here as we use
+        # later. If we use less, we will miss something later, if we use
+        # more, we will get too much later.
+        self.measure()
+
     def measure(self, interval=ACQUIRE_INTERVAL):
         rates = {}
         b_mean = {}
         b_std = {}
-        for i in [1, 0]:
-            # we acquire twice: the first time we don't get everything
-            # because it takes some time until the publisher knows we have
-            # subscribed
-            self.mon[i].acquire(interval)
+        for i in [0, 1]:
             res = self.mon[i].acquire(interval)
             for ch_str in sorted(res['baseline_mean']): # 'EEEE:LLLL:C'
                 ch = int(ch_str[-1], 16) + 16 * i
