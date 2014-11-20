@@ -4,7 +4,6 @@
 
 PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic'
 PATH_TO_HITMONITOR = '/home/cbm/cbmflib05/spadic10-sw/lib/timeslice/demo'
-FLIB_CTRL_BASE_PORT = 9750
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -19,6 +18,7 @@ USAGE = """
 usage: spadic_baseline_adjust <syscore #> <spadic #>
 """
 
+FLIB_CTRL_BASE_PORT = 9750
 SPADIC_BASE_ADDR = 0 # scv3 register 0x6a0
 EQ_ID_BASE = 0xE000
 ACQUIRE_INTERVAL = 0.1 # seconds to acquire baseline + noise
