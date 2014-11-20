@@ -33,9 +33,10 @@ def set_neighbors(ctrl):
     pairs = {'A': [(14, 'l0'), (15, 'l1')],
              'B': [(0, 'u0'), (1, 'u1')]}
     for group in 'AB':
+        nb = ctrl.digital.neighbor[group]
         for s, t in pairs[group]:
-            ctrl.digital.neighbor[group].set(source=s, target=t, enable=True)
-            ctrl.digital.neighbor[group].set(source=t, target=s, enable=True)
+            nb.set(source=s, target=t, enable=True)
+            nb.set(source=t, target=s, enable=True)
 
 
 USAGE = """
