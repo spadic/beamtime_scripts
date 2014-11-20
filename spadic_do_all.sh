@@ -1,14 +1,14 @@
 #!/bin/bash
 
-if [ ! $# -gt 0 ]
+if [ ! $# -gt 1 ]
 then
-    echo "usage: $0 <syscore #>"
+    echo "usage: $0 <syscore #> <spadic #>"
+    echo "needs DLM 11 trigger running"
     exit
 fi
 
-for i in 0 1 2
-do
-    spadic_reset $1 $i
-    spadic_default_config $1 $i
-    spadic_csa_ramp $1 $i up
-done
+spadic_reset $1 $2
+spadic_default_config $1 $2
+spadic_csa_ramp $1 $2 up
+spadic_baseline_adjust $1 $2
+spadic_neighbors $1 $2
