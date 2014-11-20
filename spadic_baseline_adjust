@@ -72,6 +72,13 @@ class BaselineAdjuster:
     def set_setting(self, ch, value):
         self.ctrl.frontend.channel[ch].set(baseline=value)
 
+    def measure_baseline(self, setting):
+        for ch in channels:
+            self.set_setting(ch, setting)
+        self.ctrl.apply()
+        res = self.acquire()
+        return {k: res[k] for k in ['mean', 'std']}
+
     def adjust(self):
         self.ctrl.update()
         m = self.acquire()
