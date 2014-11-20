@@ -49,9 +49,6 @@ class BaselineAdjuster:
         # more, we will get too much later.
         self.measure()
 
-        # set up working memory
-        self.slopes = self.get_slopes()
-
     def measure(self, interval=ACQUIRE_INTERVAL):
         res = {'rate': {}, 'mean': {}, 'std':  {}}
         for i in [0, 1]:
@@ -69,13 +66,20 @@ class BaselineAdjuster:
     def set_setting(self, ch, value):
         self.ctrl.frontend.channel[ch].set(baseline=value)
 
-    def get_slopes(self):
+    def adjust(self):
         self.ctrl.update()
         m = self.measure()
         old_baselines = {}
         old_settings = {}
         new_settings = {}
+
+        # determine which channels are active
         channels = m['mean'].keys()
+        print 'see data from channels', ' '.join(map(str, sorted(channels)))
+
+        # TODO sort out broken channels (mean value off, noisy, ...)
+
+        # determine slopes
         for ch in channels:
             old_baselines[ch] = m['mean'][ch]
             old_settings[ch] = self.get_setting(ch)
@@ -84,24 +88,30 @@ class BaselineAdjuster:
         self.ctrl.apply()
         m = self.measure()
         new_baselines = {ch: m['mean'][ch] for ch in channels}
-        return {ch: ((new_baselines[ch]-old_baselines[ch]) /
-                     (new_settings[ch]-old_settings[ch]))
-                for ch in channels}
+        slopes = {ch: ((new_baselines[ch]-old_baselines[ch]) /
+                       (new_settings[ch]-old_settings[ch]))
+                  for ch in channels}
 
-    def adjust(self, ch, target):
-        current_setting = self.read_setting(ch)
-        current_baseline = self.measure()['mean'][ch]
-        print "channel", ch, "is now at", current_setting, current_baseline
+        for ch in channels:
+            print ch, slopes[ch]
+
+        # equalize baselines (target = median)
+        target = sorted(new_baselines.values())[len(channels)/2]
+        print old_baselines.values()
+        print target
+        for ch in channels:
+            deviation = new_baselines[ch] - target
+            correction = int(deviation/slopes[ch])
+            self.set_setting(ch, new_settings[ch] + correction - 10)
+
+        self.ctrl.apply()
 
 
 #---- MAIN -----------------------------------------------------------
 
 def main(argv):
     adj = BaselineAdjuster(argv)
-    r, m, s = adj.measure()
-    print r
-    print m
-    print s
+    adj.adjust()
 
 if __name__=='__main__':
     main(sys.argv)
