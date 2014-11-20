@@ -53,12 +53,12 @@ class BaselineAdjuster:
         # Apparently we need to use the same time interval here as we use
         # later. If we use less, we will miss something later, if we use
         # more, we will get too much later.
-        self.measure()
+        self.acquire()
 
-    def measure(self, interval=ACQUIRE_INTERVAL):
+    def acquire(self):
         res = {'rate': {}, 'mean': {}, 'std':  {}}
         for i in [0, 1]:
-            a = self.mon[i].acquire(interval)
+            a = self.mon[i].acquire(ACQUIRE_INTERVAL)
             for ch_str in sorted(a['baseline_mean']): # 'EEEE:LLLL:C'
                 ch = int(ch_str[-1], 16) + 16 * i
                 res['rate'][ch] = a['hit_rates'][ch_str]
@@ -74,7 +74,7 @@ class BaselineAdjuster:
 
     def adjust(self):
         self.ctrl.update()
-        m = self.measure()
+        m = self.acquire()
         old_baselines = {}
         old_settings = {}
         new_settings = {}
@@ -92,7 +92,7 @@ class BaselineAdjuster:
             new_settings[ch] = old_settings[ch] + 10
             self.set_setting(ch, new_settings[ch])
         self.ctrl.apply()
-        m = self.measure()
+        m = self.acquire()
         new_baselines = {ch: m['mean'][ch] for ch in channels}
         slopes = {ch: ((new_baselines[ch]-old_baselines[ch]) /
                        (new_settings[ch]-old_settings[ch]))
