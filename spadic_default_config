@@ -46,8 +46,8 @@ def set_config(ctrl, channels):
 
     # global digital settings
     ctrl.hitlogic.set(
-      threshold1 = 30, # TODO adjust properly
-      threshold2 = 50, # TODO adjust properly
+      threshold1 = 0xFF, # turn on later
+      threshold2 = 0xFF,
       diffmode = False,
       mask = 0xFFFFFFFF,
       window = 32,
@@ -65,8 +65,7 @@ def set_config(ctrl, channels):
     #----------------------------------------------------
     # advanced stuff - do this when everything else works
 
-    # neighbor trigger setup
-    #ctrl.digital.neighbor['A'].set(source=5, target=3, enable=1) # etc
+    # neighbor trigger setup done in spadic_neighbors
 
     # digital filter settings
     #ctrl.filter.set(
