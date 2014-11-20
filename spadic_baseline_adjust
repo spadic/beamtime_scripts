@@ -51,7 +51,7 @@ class BaselineAdjuster:
         except:
             raise SystemExit(USAGE)
         self._duration = get_arg(argv, '--measure', float)
-        self.target_level = get_arg(argv, '--target', int)
+        self._target_level = get_arg(argv, '--target', float)
 
         # set up HitMonitors
         mon = {}
@@ -125,7 +125,7 @@ class BaselineAdjuster:
             parameters[ch] = popt
         return measured_baselines, parameters
 
-    def adjust(self, target=None):
+    def adjust(self):
         """
         Equalize the baselines of all channels.
         If not specified otherwise, the target is the median of the center
@@ -135,7 +135,7 @@ class BaselineAdjuster:
         channels = range(32)
 
         b = self.measured_baselines[self.CENTER_SETTING]['mean']
-        target = target or sorted(b.values())[len(channels)/2] # median
+        target = self._target_level or sorted(b.values())[len(channels)/2] # median
         print "the target baseline is %.1f" % target
         for ch in channels:
             s = int(self.baseline_curve_inv(target, *self.calibration_parameters[ch]))
@@ -151,7 +151,7 @@ class BaselineAdjuster:
 
 def main(argv):
     adj = BaselineAdjuster(argv)
-    adj.adjust()#target=-230)
+    adj.adjust()
 
 if __name__=='__main__':
     main(sys.argv)
