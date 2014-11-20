@@ -3,44 +3,56 @@
 
 
 PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic'
+PATH_TO_HITMONITOR = '/home/cbm/cbmflib05/spadic10-sw/lib/timeslice/demo'
 FLIB_CTRL_BASE_PORT = 9750
 
 import sys
 sys.path.insert(0, PATH_TO_SPADIC_SW)
+sys.path.insert(0, PATH_TO_HITMONITOR)
 from walter_client import Spadic
+from hitmonitor import HitMonitor
 
 
 # TODO
 
-def set_thresholds(ctrl, thresholds):
+def adjust_baselines(ctrl, monitor):
     res = ctrl.hitlogic.read()
     current_thresholds = [res['threshold1'], res['threshold2']]
     print "thresholds are now at", current_thresholds
     print "setting them to", thresholds
     ctrl.hitlogic.write(**dict(zip(['threshold1', 'threshold2'], thresholds)))
 
-# TODO
-
 USAGE = """
-usage: spadic_baseline_adjust <syscore #> <spadic #> off|<th1 th2>
-
-"off" -> 255 255
+usage: spadic_baseline_adjust <syscore #> <spadic #>
 """
 
-# TODO
+SPADIC_BASE_ADDR = 0 # scv3 register 0x6a0
+EQ_ID_BASE = 0xE000
+ACQUIRE_INTERVAL = 1.0 # seconds to measure baseline + noise
 
 def main(argv):
     try:
         syscore_num, spadic_num = map(int, argv[1:3])
-        if argv[3] == 'off':
-            thresholds = [255, 255]
-        else:
-            thresholds = map(int, argv[3:5])
     except:
         raise SystemExit(USAGE)
 
     port = FLIB_CTRL_BASE_PORT + syscore_num
     host = 'tcp://localhost:%d' % port
+    mon = {}
+    for i in [0, 1]:
+        eq_id = EQ_ID_BASE + syscore_num
+        src_addr = SPADIC_BASE_ADDR + 2*spadic_num+i
+        mon_arg = map(str, [eq_id, src_addr])
+        mon[i] = HitMonitor(['dummy'] + mon_arg)
+
+    for i in [0, 1]:
+        res = mon[i].acquire(ACQUIRE_INTERVAL)
+        for ch_str in sorted(res['baseline_mean']): # 'EEEE:LLLL:C'
+            ch = int(ch_str[-1], 16) + 16 * i
+            rate = res['hit_rates'][ch_str]
+            mean = res['baseline_mean'][ch_str]
+            std = res['baseline_std'][ch_str]
+            print ch, mean, std
 
     print 'setting thresholds of SPADIC #%d at %s...' % (spadic_num, host)
     s = Spadic(host, spadic_num)
