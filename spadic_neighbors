@@ -10,7 +10,7 @@ sys.path.insert(0, PATH_TO_SPADIC_SW)
 from walter_client import Spadic
 
 
-def set_neighbors(ctrl):
+def set_neighbors(ctrl, clear=False):
     """
     Set neighbor trigger matrix.
 
@@ -24,10 +24,13 @@ def set_neighbors(ctrl):
     for group in 'AB':
         nb = ctrl.digital.neighbor[group]
         nb.reset() # first clear all existings settings
-
+        if clear:
+            continue
         for src_ch in range(2, 14):
             for tgt_ch in [src_ch+2, src_ch-2]:
                 nb.set(source=src_ch, target=tgt_ch, enable=True)
+    if clear:
+        return
 
     # 2) across groups TODO not sure if correct AND working
     pairs = {'A': [(14, 'l0'), (15, 'l1')],
@@ -40,7 +43,9 @@ def set_neighbors(ctrl):
 
 
 USAGE = """
-usage: spadic_neighbors <syscore #> <spadic #>
+usage: spadic_neighbors <syscore #> <spadic #> [clear]
+
+Sets the neighbor trigger matrix, or optionally clears it.
 """
 
 def main(argv):
@@ -49,13 +54,19 @@ def main(argv):
     except:
         raise SystemExit(USAGE)
 
+    try:
+        clear = argv[3] == "clear"
+    except IndexError:
+        clear = False
+
     port = FLIB_CTRL_BASE_PORT + syscore_num
     host = 'tcp://localhost:%d' % port
 
-    print 'configuring neighbor matrix of SPADIC #%d at %s...' % (spadic_num, host)
+    print '%s neighbor matrix of SPADIC #%d at %s...' % (
+      ('clearing' if clear else 'setting'), spadic_num, host)
     s = Spadic(host, spadic_num)
     s.ctrl.update()
-    set_neighbors(s.ctrl)
+    set_neighbors(s.ctrl, clear)
     s.ctrl.apply()
     print "OK."
 
