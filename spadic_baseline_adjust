@@ -36,26 +36,23 @@ def get_arg(argv, name, type_):
     except ValueError, TypeError:
         return None
 
-class BaselineAdjuster:
-    # TODO add second order term and find good initial guess
-    @staticmethod
-    def baseline_curve_inv(x, a, b):
-        return a*x + b
+# TODO add second order term and find good initial guess
+def baseline_curve_inv(x, a, b):
+    return a*x + b
 
+def is_outside_range(value, range_):
+    return not (range_[0] <= value <= range_[1])
+
+def limit_to_range(value, range_):
+    if value < range_[0]:
+        return range_[0]
+    if value > range_[1]:
+        return range_[1]
+
+class BaselineAdjuster:
     CENTER_SETTING = 70 # not really the center but the nominal value
     SETTING_RANGE_WARN = [CENTER_SETTING-30, CENTER_SETTING+30]
     SETTING_RANGE_FAIL = [0, 127]
-
-    @staticmethod
-    def is_outside_range(value, range_):
-        return not (range_[0] <= value <= range_[1])
-
-    @staticmethod
-    def limit_to_range(value, range_):
-        if value < range_[0]:
-            return range_[0]
-        if value > range_[1]:
-            return range_[1]
 
     def __init__(self, argv):
         try:
@@ -136,7 +133,7 @@ class BaselineAdjuster:
                           for s in setting_steps])
             sigma = np.array([measured_baselines[s]['std'][ch]
                               for s in setting_steps])
-            popt, _ = curve_fit(self.baseline_curve_inv, x, y, p0, sigma)
+            popt, _ = curve_fit(baseline_curve_inv, x, y, p0, sigma)
             parameters[ch] = popt
         return measured_baselines, parameters
 
@@ -153,14 +150,14 @@ class BaselineAdjuster:
         target = self._target_level or sorted(b.values())[len(channels)/2] # median
         print "the target baseline is %.1f" % target
         for ch in channels:
-            s = int(self.baseline_curve_inv(target, *self.calibration_parameters[ch]))
-            if self.is_outside_range(s, self.SETTING_RANGE_FAIL):
-                limit_value = self.limit_to_range(s, self.SETTING_RANGE_FAIL)
+            s = int(baseline_curve_inv(target, *self.calibration_parameters[ch]))
+            if is_outside_range(s, self.SETTING_RANGE_FAIL):
+                limit_value = limit_to_range(s, self.SETTING_RANGE_FAIL)
                 print ("WARNING: Trying to set channel %d to %d, "
                        "which is outside the acceptable range. "
                        "Limiting to %d." % (ch, s, limit_value))
                 s = limit_value
-            elif self.is_outside_range(s, self.SETTING_RANGE_WARN):
+            elif is_outside_range(s, self.SETTING_RANGE_WARN):
                 print ("WARNING: Trying to set channel %d to %d, "
                        "which is not a good value." % (ch, s))
             # TODO check values not in 0..127
