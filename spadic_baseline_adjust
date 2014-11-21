@@ -5,14 +5,14 @@
 PATH_TO_SPADIC_SW = '/home/cbm/cbmflib05/spadic10-sw/spadic'
 PATH_TO_HITMONITOR = '/home/cbm/cbmflib05/spadic10-sw/lib/timeslice/demo'
 
-import numpy as np
-from scipy.optimize import curve_fit
 import sys
 sys.path.insert(0, PATH_TO_SPADIC_SW)
 sys.path.insert(0, PATH_TO_HITMONITOR)
 from walter_client import Spadic
 from hitmonitor import HitMonitor
 
+import numpy as np
+from scipy.optimize import curve_fit
 
 FLIB_CTRL_BASE_PORT = 9750
 SPADIC_BASE_ADDR = 0 # scv3 register 0x6a0
