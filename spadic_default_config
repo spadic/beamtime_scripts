@@ -35,6 +35,7 @@ def set_config(ctrl, channels):
       ncasc = 110,
       xfb = 30
     )
+    print 'Amplifiers are still powered down.'
 
     # per-channel analog settings
     for i in channels:
@@ -45,15 +46,17 @@ def set_config(ctrl, channels):
         )
 
     # global digital settings
+    thresholds = [0xFF, 0xFF] # turn on later
     ctrl.hitlogic.set(
-      threshold1 = 0xFF, # turn on later
-      threshold2 = 0xFF,
+      threshold1 = thresholds[0],
+      threshold2 = thresholds[1],
       diffmode = False,
       mask = 0xFFFFFFFF,
       window = 32,
       analogtrigger = False, # injection in ch.31 triggered by DLM 10
       triggerout = False # LVDS output triggered by DLM 12
     )
+    print 'Thresholds are at %s.' % str(thresholds)
 
     # per-channel digital settings
     for i in channels:
@@ -126,7 +129,7 @@ def main(argv):
     s = Spadic(host, spadic_num)
     set_config(s.ctrl, channels)
     s.ctrl.apply()
-    print 'OK. Amplifiers are still powered down.'
+    print 'OK.'
 
 if __name__=='__main__':
     main(sys.argv)
