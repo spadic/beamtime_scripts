@@ -85,10 +85,11 @@ class BaselineAdjuster:
         # more, we will get too much later.
         self.acquire(self._duration)
 
-        # calibrate
-        b, p = self.calibrate_settings()
+        # calibrate and remember working channels
+        b, p, ch = self.calibrate_settings()
         self.measured_baselines = b
         self.calibration_parameters = p
+        self.working_channels = ch
 
     def acquire(self, duration=None):
         res = {'rate': {}, 'mean': {}, 'std':  {}}
@@ -126,16 +127,23 @@ class BaselineAdjuster:
                               for s in setting_steps}
         parameters = {}
         p0 = [1.2, 350]
+        broken_channels = []
         for ch in channels:
             # trick: swap x, y now to save solving for x later
             y = np.array(setting_steps)
-            x = np.array([measured_baselines[s]['mean'][ch]
-                          for s in setting_steps])
+            try:
+                x = np.array([measured_baselines[s]['mean'][ch]
+                              for s in setting_steps])
+            except KeyError:
+                broken_channels.append(ch)
+                print "Warning: Channel %d is broken." % ch
+                continue
             sigma = np.array([measured_baselines[s]['std'][ch]
                               for s in setting_steps])
             popt, _ = curve_fit(baseline_curve_inv, x, y, p0, sigma)
             parameters[ch] = popt
-        return measured_baselines, parameters
+        working_channels = [ch for ch in channels if not ch in broken_channels]
+        return measured_baselines, parameters, working_channels
 
     def adjust(self):
         """
@@ -143,8 +151,7 @@ class BaselineAdjuster:
         If not specified otherwise, the target is the median of the center
         settings.
         """
-        # TODO sort out broken channels (mean value off, noisy, ...)
-        channels = range(32)
+        channels = self.working_channels
 
         b = self.measured_baselines[self.CENTER_SETTING]['mean']
         target = self._target_level or sorted(b.values())[len(channels)/2] # median
